@@ -10,10 +10,15 @@ interface FileSample {
   contents: string | void;
 }
 
+// replace \ with / on win32
+function normalize(p: string): string {
+  return p.replaceAll('\\', '/');
+}
+
 function map(files: Vinyl[]): FileSample[] {
   return files.map((f) => ({
-    relative: path.posix.normalize(f.relative),
-    base: path.posix.normalize(path.relative(process.cwd(), f.base)),
+    relative: normalize(f.relative),
+    base: normalize(path.relative(process.cwd(), f.base)),
     contents: f.contents?.toString('utf8')
   }));
 }
