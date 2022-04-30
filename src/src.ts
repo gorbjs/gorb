@@ -10,7 +10,7 @@ interface PathWithStat {
 }
 
 // walk recursively to yield file path and stat.
-export async function* walk(dir: string): AsyncIterableIterator<PathWithStat> {
+export async function* walk(dir: string): AsyncIterable<PathWithStat> {
   const subs = await fs.promises.readdir(dir);
   for (const sub of subs) {
     const filePath = path.join(dir, sub);
@@ -27,39 +27,40 @@ interface Matcher {
   doesMatch: (str: string) => boolean;
 }
 
-export async function* glob(patterns: string | string[], options?: micromatch.Options): AsyncIterableIterator<Vinyl> {
+export async function* glob(patterns: string | string[], options?: micromatch.Options): AsyncIterable<Vinyl> {
   if (typeof patterns === 'string') patterns = [patterns];
   const cwd = options?.cwd || process.cwd();
 
   const positiveMatchers: Matcher[] = [];
   const negativeMatchers: Matcher[] = [];
 
-  patterns.forEach((pattern) => {
-    const info = micromatch.scan(pattern, options);
-    const doesMatch = micromatch.matcher(pattern, options);
-    if (info.negated) {
-      negativeMatchers.push({ info, doesMatch });
-    } else {
-      positiveMatchers.push({ info, doesMatch });
-    }
-  });
+  patterns
+    .map((p) => path.resolve(cwd, p))
+    .forEach((pattern) => {
+      const info = micromatch.scan(pattern, options);
+      const doesMatch = micromatch.matcher(pattern, options);
+      if (info.negated) {
+        negativeMatchers.push({ info, doesMatch });
+      } else {
+        positiveMatchers.push({ info, doesMatch });
+      }
+    });
 
   if (positiveMatchers.length === 0) {
     throw new Error("Missing positive glob");
   }
 
   for (const matcher of positiveMatchers) {
-    const base = path.join(cwd, matcher.info.base);
-
+    const { base, input } = matcher.info;
     // pattern could be just a static string like "src/index.html".
-    if (matcher.info.input === matcher.info.base) {
+    if (input === base) {
       // TODO source-map init
       const stat = await fs.promises.stat(base);
       yield new Vinyl({
         path: base,
         stat,
         cwd,
-        base,
+        base: path.dirname(base),
         contents: stat.isDirectory() ? null : await fs.promises.readFile(base)
       });
       continue;
@@ -79,7 +80,7 @@ export async function* glob(patterns: string | string[], options?: micromatch.Op
 }
 
 export function src(patterns: string | string[], options?: micromatch.Options): stream.Readable {
-  // TODO wait for @types/node to provide stream.compose
-  return stream['compose'](glob(patterns, options));
+  // @ts-ignore: wait for @types/node to add stream.compose
+  return stream.compose(glob(patterns, options));
 }
 
