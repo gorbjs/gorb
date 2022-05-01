@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as stream from 'stream';
 import * as micromatch from 'micromatch';
 import { Vinyl } from '@gorb/shared';
+import { passThrough } from './pass-through';
 
 interface PathWithStat {
   path: string;
@@ -27,8 +28,17 @@ interface Matcher {
   doesMatch: (str: string) => boolean;
 }
 
-export async function* glob(patterns: string | string[], options?: micromatch.Options): AsyncIterable<Vinyl> {
+interface MatcherGroup {
+  cwd: string;
+  positive: Matcher[];
+  negative: Matcher[];
+}
+
+export function matcherGroup(patterns: string | string[], options?: micromatch.Options): MatcherGroup {
+  if (!patterns) throw new Error("Missing glob pattern");
   if (typeof patterns === 'string') patterns = [patterns];
+  if (!Array.isArray(patterns)) throw new Error("Unexpected glob pattern");
+  if (patterns.some(p => !p)) throw new Error("glob pattern cannot be empty");
   const cwd = options?.cwd || process.cwd();
 
   const positiveMatchers: Matcher[] = [];
@@ -47,10 +57,18 @@ export async function* glob(patterns: string | string[], options?: micromatch.Op
     });
 
   if (positiveMatchers.length === 0) {
-    throw new Error("Missing positive glob");
+    throw new Error("Missing positive glob pattern");
   }
 
-  for (const matcher of positiveMatchers) {
+  return {
+    cwd,
+    positive: positiveMatchers,
+    negative: negativeMatchers
+  };
+}
+
+export async function* glob({ cwd, positive, negative }: MatcherGroup): AsyncIterable<Vinyl> {
+  for (const matcher of positive) {
     const { base, input } = matcher.info;
     // pattern could be just a static string like "src/index.html".
     if (input === base) {
@@ -66,7 +84,7 @@ export async function* glob(patterns: string | string[], options?: micromatch.Op
       continue;
     }
     for await (const fileOpts of walk(base)) {
-      if (matcher.doesMatch(fileOpts.path) && negativeMatchers.every((m) => m.doesMatch(fileOpts.path))) {
+      if (matcher.doesMatch(fileOpts.path) && negative.every((m) => m.doesMatch(fileOpts.path))) {
         // TODO source-map init
         yield new Vinyl({
           ...fileOpts,
@@ -79,8 +97,8 @@ export async function* glob(patterns: string | string[], options?: micromatch.Op
   }
 }
 
-export function src(patterns: string | string[], options?: micromatch.Options): stream.Readable {
-  // @ts-ignore: wait for @types/node to add stream.compose
-  return stream.compose(glob(patterns, options));
+export function src(patterns: string | string[], options?: micromatch.Options): stream.Duplex {
+  const mg = matcherGroup(patterns, options);
+  return passThrough(glob(mg));
 }
 
