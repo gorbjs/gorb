@@ -45,7 +45,11 @@ export function matcherGroup(patterns: string | string[], options?: micromatch.O
   const negativeMatchers: Matcher[] = [];
 
   patterns
-    .map((p) => path.resolve(cwd, p))
+    .map((p) =>
+      path.resolve(cwd, p)
+        // micromatch uses forward slash "/" even on windows.
+        .replace(/\\/g, '/')
+    )
     .forEach((pattern) => {
       const info = micromatch.scan(pattern, options);
       const doesMatch = micromatch.matcher(pattern, options);
@@ -83,6 +87,7 @@ export async function* glob({ cwd, positive, negative }: MatcherGroup): AsyncIte
       });
       continue;
     }
+
     for await (const fileOpts of walk(base)) {
       if (matcher.doesMatch(fileOpts.path) && negative.every((m) => m.doesMatch(fileOpts.path))) {
         // TODO source-map init
