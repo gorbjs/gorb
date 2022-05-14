@@ -55,7 +55,6 @@ test('src pipe files matching single file', async (t) => {
 test('src passes through write', async (t) => {
   const s = src('test_files/src/a.js');
   const cwd = process.cwd();
-  console.log("Write mock file");
   const anotherInput = stream.Readable.from([new Vinyl({
     path: path.join(cwd, 'mock', 'file.txt'),
     base: path.join(cwd, 'mock'),

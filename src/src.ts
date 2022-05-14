@@ -99,6 +99,8 @@ export async function* glob({ cwd, positive, negative }: MatcherGroup): AsyncIte
 
 export function src(patterns: string | string[], options?: micromatch.Options): stream.Duplex {
   const mg = matcherGroup(patterns, options);
-  return passThrough(glob(mg));
+  // @ts-ignore
+  const readable = stream.compose(glob(mg));
+  return passThrough(readable);
 }
 

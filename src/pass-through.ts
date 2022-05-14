@@ -1,17 +1,17 @@
 import * as stream from 'stream';
 
 // https://github.com/gulpjs/to-through
-export function passThrough<T>(generator: AsyncIterable<T>): stream.Transform {
+export function passThrough(readable: stream.Readable): stream.Transform {
   const wrapper = new stream.Transform({
     objectMode: true,
-    transform(file: T, encoding: BufferEncoding, callback: stream.TransformCallback) {
-      // pass through incoming files.
-      callback(null, file);
+    transform(chunk: any, encoding: BufferEncoding, callback: stream.TransformCallback) {
+      // pass through incoming chunks.
+      callback(null, chunk);
     },
     async flush(callback: stream.TransformCallback) {
       try {
-        for await (const file of generator) {
-          this.push(file);
+        for await (const chunk of readable) {
+          this.push(chunk);
         }
       } catch (e) {
         callback(e);
