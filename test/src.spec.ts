@@ -5,10 +5,12 @@ import { Vinyl } from '@gorb/shared';
 import _ from 'lodash';
 import { src } from '../src';
 
+const cwd = process.cwd();
+
 interface FileSample {
   relative: string;
   base: string;
-  contents: string | void;
+  contents: string | null;
 }
 
 // replace \ with / on win32
@@ -21,7 +23,7 @@ function map(files: Vinyl[]): FileSample[] {
     relative: normalize(f.relative),
     base: normalize(path.relative(process.cwd(), f.base)),
     // Normalise win32 line separator too.
-    contents: f.contents?.toString('utf8').replaceAll('\r\n', '\n')
+    contents: (f.contents ? f.contents.toString('utf8').replaceAll('\r\n', '\n') : null)
   }));
   return _.sortBy(samples, ['base', 'relative']);
 }
@@ -92,5 +94,144 @@ test('src pipe files matching patterns', async (t) => {
     { relative: 'a__test__.js', base: 'test_files/test', contents: '// a__test__\n' },
     { relative: 'b.test.js', base: 'test_files/test', contents: '// b.test\n' },
     { relative: 'setup.js', base: 'test_files/test', contents: '// setup\n' },
+  ]);
+});
+
+test('src pipe files matching single pattern with cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src('**/*.js', { cwd: path.join(cwd, 'test_files') }).toArray();
+  t.is(files.length, 5);
+  t.deepEqual(map(files), [
+    { relative: 'src/a.js', base: 'test_files', contents: '// a\n' },
+    { relative: 'test/a.test.js', base: 'test_files', contents: '// a.test\n' },
+    { relative: 'test/a__test__.js', base: 'test_files', contents: '// a__test__\n' },
+    { relative: 'test/b.test.js', base: 'test_files', contents: '// b.test\n' },
+    { relative: 'test/setup.js', base: 'test_files', contents: '// setup\n' },
+  ]);
+});
+
+test('src pipe files matching patterns with cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(['src/**/*.js', 'test/**/*.js'], { cwd: path.join(cwd, 'test_files') }).toArray();
+  t.is(files.length, 5);
+  t.deepEqual(map(files), [
+    { relative: 'a.js', base: 'test_files/src', contents: '// a\n' },
+    { relative: 'a.test.js', base: 'test_files/test', contents: '// a.test\n' },
+    { relative: 'a__test__.js', base: 'test_files/test', contents: '// a__test__\n' },
+    { relative: 'b.test.js', base: 'test_files/test', contents: '// b.test\n' },
+    { relative: 'setup.js', base: 'test_files/test', contents: '// setup\n' },
+  ]);
+});
+
+test('src pipe files matching single pattern with relative cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src('**/*.js', { cwd: 'test_files' }).toArray();
+  t.is(files.length, 5);
+  t.deepEqual(map(files), [
+    { relative: 'src/a.js', base: 'test_files', contents: '// a\n' },
+    { relative: 'test/a.test.js', base: 'test_files', contents: '// a.test\n' },
+    { relative: 'test/a__test__.js', base: 'test_files', contents: '// a__test__\n' },
+    { relative: 'test/b.test.js', base: 'test_files', contents: '// b.test\n' },
+    { relative: 'test/setup.js', base: 'test_files', contents: '// setup\n' },
+  ]);
+});
+
+test('src pipe files matching patterns with relative cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(['src/**/*.js', 'test/**/*.js'], { cwd: 'test_files' }).toArray();
+  t.is(files.length, 5);
+  t.deepEqual(map(files), [
+    { relative: 'a.js', base: 'test_files/src', contents: '// a\n' },
+    { relative: 'a.test.js', base: 'test_files/test', contents: '// a.test\n' },
+    { relative: 'a__test__.js', base: 'test_files/test', contents: '// a__test__\n' },
+    { relative: 'b.test.js', base: 'test_files/test', contents: '// b.test\n' },
+    { relative: 'setup.js', base: 'test_files/test', contents: '// setup\n' },
+  ]);
+});
+
+test('src globs a directory', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src('test_files/sr*/').toArray();
+  t.is(files.length, 1);
+  t.deepEqual(map(files), [
+    { relative: 'src', base: 'test_files', contents: null }
+  ]);
+});
+
+test('src globs a directory with cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src('sr*', { cwd: path.join(cwd, 'test_files') }).toArray();
+  t.is(files.length, 1);
+  t.deepEqual(map(files), [
+    { relative: 'src', base: 'test_files', contents: null }
+  ]);
+});
+
+test('src globs a directory with relative cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src('sr*', { cwd: 'test_files' }).toArray();
+  t.is(files.length, 1);
+  t.deepEqual(map(files), [
+    { relative: 'src', base: 'test_files', contents: null }
+  ]);
+});
+
+test('src globs directories', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(['test_files/sr*', 'test_files/test']).toArray();
+  t.is(files.length, 2);
+  t.deepEqual(map(files), [
+    { relative: 'src', base: 'test_files', contents: null },
+    { relative: 'test', base: 'test_files', contents: null }
+  ]);
+});
+
+test('src globs directories with cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(['sr*', 'test'], { cwd: path.join(cwd, 'test_files') }).toArray();
+  t.is(files.length, 2);
+  t.deepEqual(map(files), [
+    { relative: 'src', base: 'test_files', contents: null },
+    { relative: 'test', base: 'test_files', contents: null }
+  ]);
+});
+
+test('src globs directories with relative cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(['sr*', 'test'], { cwd: 'test_files' }).toArray();
+  t.is(files.length, 2);
+  t.deepEqual(map(files), [
+    { relative: 'src', base: 'test_files', contents: null },
+    { relative: 'test', base: 'test_files', contents: null }
+  ]);
+});
+
+test('src globs mix of files and directories', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src('test_files/**/(empty|*.spec.md)').toArray();
+  t.is(files.length, 2);
+  t.deepEqual(map(files), [
+    { relative: 'src/a.spec.md', base: 'test_files', contents: '# A spec\n' },
+    { relative: 'src/empty', base: 'test_files', contents: null }
+  ]);
+});
+
+test('src globs mix of files and directories with cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src('**/(empty|*.spec.md)', { cwd: path.join(cwd, 'test_files') }).toArray();
+  t.is(files.length, 2);
+  t.deepEqual(map(files), [
+    { relative: 'src/a.spec.md', base: 'test_files', contents: '# A spec\n' },
+    { relative: 'src/empty', base: 'test_files', contents: null }
+  ]);
+});
+
+test('src globs mix of files and directories with relative cwd option', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src('**/(empty|*.spec.md)', { cwd: 'test_files' }).toArray();
+  t.is(files.length, 2);
+  t.deepEqual(map(files), [
+    { relative: 'src/a.spec.md', base: 'test_files', contents: '# A spec\n' },
+    { relative: 'src/empty', base: 'test_files', contents: null }
   ]);
 });
