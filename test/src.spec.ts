@@ -1,5 +1,6 @@
 import test from 'ava';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as stream from 'stream';
 import { Vinyl } from '@gorb/shared';
 import _ from 'lodash';
@@ -234,4 +235,61 @@ test('src globs mix of files and directories with relative cwd option', async (t
     { relative: 'src/a.spec.md', base: 'test_files', contents: '# A spec\n' },
     { relative: 'src/empty', base: 'test_files', contents: null }
   ]);
+});
+
+test('src globs file after since', async (t) => {
+  const inputPath = 'test_files/src/a.js';
+  const lastUpdateDate = new Date(fs.statSync(inputPath).mtime.getTime() - 1000);
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(inputPath, { since: lastUpdateDate }).toArray();
+  t.is(files.length, 1);
+  t.deepEqual(map(files), [
+    { relative: 'a.js', base: 'test_files/src', contents: '// a\n' }
+  ]);
+});
+
+test('src does not glob file before since', async (t) => {
+  const inputPath = 'test_files/src/a.js';
+  const lastUpdateDate = new Date(fs.statSync(inputPath).mtime.getTime() + 1000);
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(inputPath, { since: lastUpdateDate }).toArray();
+  t.is(files.length, 0);
+});
+
+test('src globs file after since number', async (t) => {
+  const inputPath = 'test_files/src/a.js';
+  const lastUpdateDate = fs.statSync(inputPath).mtime.getTime() - 1000;
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(inputPath, { since: lastUpdateDate }).toArray();
+  t.is(files.length, 1);
+  t.deepEqual(map(files), [
+    { relative: 'a.js', base: 'test_files/src', contents: '// a\n' }
+  ]);
+});
+
+test('src does not glob file before since number', async (t) => {
+  const inputPath = 'test_files/src/a.js';
+  const lastUpdateDate = fs.statSync(inputPath).mtime.getTime() + 1000;
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(inputPath, { since: lastUpdateDate }).toArray();
+  t.is(files.length, 0);
+});
+
+test('src globs file after since function', async (t) => {
+  const inputPath = 'test_files/src/a.js';
+  const lastUpdateDate = (file: Vinyl) => new Date(file.stat.mtime.getTime() - 1000);
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(inputPath, { since: lastUpdateDate }).toArray();
+  t.is(files.length, 1);
+  t.deepEqual(map(files), [
+    { relative: 'a.js', base: 'test_files/src', contents: '// a\n' }
+  ]);
+});
+
+test('src does not glob file before since function', async (t) => {
+  const inputPath = 'test_files/src/a.js';
+  const lastUpdateDate = (file: Vinyl) => file.stat.mtime.getTime() + 1000;
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(inputPath, { since: lastUpdateDate }).toArray();
+  t.is(files.length, 0);
 });
