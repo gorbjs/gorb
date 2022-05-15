@@ -98,19 +98,6 @@ test('src pipe files matching patterns', async (t) => {
   ]);
 });
 
-test('src pipe files matching single pattern with cwd option', async (t) => {
-  // @ts-ignore: wait for @types/node to add readable.toArray
-  const files: Vinyl[] = await src('**/*.js', { cwd: path.join(cwd, 'test_files') }).toArray();
-  t.is(files.length, 5);
-  t.deepEqual(map(files), [
-    { relative: 'src/a.js', base: 'test_files', contents: '// a\n' },
-    { relative: 'test/a.test.js', base: 'test_files', contents: '// a.test\n' },
-    { relative: 'test/a__test__.js', base: 'test_files', contents: '// a__test__\n' },
-    { relative: 'test/b.test.js', base: 'test_files', contents: '// b.test\n' },
-    { relative: 'test/setup.js', base: 'test_files', contents: '// setup\n' },
-  ]);
-});
-
 test('src pipe files matching patterns with cwd option', async (t) => {
   // @ts-ignore: wait for @types/node to add readable.toArray
   const files: Vinyl[] = await src(['src/**/*.js', 'test/**/*.js'], { cwd: path.join(cwd, 'test_files') }).toArray();
@@ -292,4 +279,25 @@ test('src does not glob file before since function', async (t) => {
   // @ts-ignore: wait for @types/node to add readable.toArray
   const files: Vinyl[] = await src(inputPath, { since: lastUpdateDate }).toArray();
   t.is(files.length, 0);
+});
+
+test('src pipe files matching negative patterns', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(['test_files/**/*.js', '!test_files/src/**/*.js', '!test_files/**/*__test__.js']).toArray();
+  t.is(files.length, 3);
+  t.deepEqual(map(files), [
+    { relative: 'test/a.test.js', base: 'test_files', contents: '// a.test\n' },
+    { relative: 'test/b.test.js', base: 'test_files', contents: '// b.test\n' },
+    { relative: 'test/setup.js', base: 'test_files', contents: '// setup\n' }
+  ]);
+});
+
+test('src pipe files matching dot file', async (t) => {
+  // @ts-ignore: wait for @types/node to add readable.toArray
+  const files: Vinyl[] = await src(['test_files/src/**/*.js'], { dot: true }).toArray();
+  t.is(files.length, 2);
+  t.deepEqual(map(files), [
+    { relative: '.somerc.js', base: 'test_files/src', contents: '{}\n' },
+    { relative: 'a.js', base: 'test_files/src', contents: '// a\n' }
+  ]);
 });

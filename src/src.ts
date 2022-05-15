@@ -56,11 +56,17 @@ export function matcherGroup(patterns: string | string[], options: SrcOptions = 
   const negativeMatchers: Matcher[] = [];
 
   patterns
-    .map((p) =>
-      path.resolve(_cwd, p)
+    .map((p) => {
+      let prefix = '';
+      if (p.startsWith('!')) {
+        prefix = '!';
+        p = p.slice(1);
+      }
+      const fullPath = path.resolve(_cwd, p)
         // micromatch uses forward slash "/" even on windows.
-        .replace(/\\/g, '/')
-    )
+        .replace(/\\/g, '/');
+      return prefix + fullPath;
+    })
     .forEach((pattern) => {
       const info = micromatch.scan(pattern, micromatchOptions);
       const doesMatch = micromatch.matcher(pattern, micromatchOptions);
@@ -74,6 +80,9 @@ export function matcherGroup(patterns: string | string[], options: SrcOptions = 
   if (positiveMatchers.length === 0) {
     throw new Error("Missing positive glob pattern");
   }
+
+  // console.log(positiveMatchers);
+  // console.log(negativeMatchers);
 
   return {
     cwd: _cwd,
