@@ -1,6 +1,6 @@
 {
   "name": "gorb",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "A drop-in (almost) replacement for Gulp. Minimum dependencies, for Nodejs v18+.",
   "source": "src/index.ts",
   "main": "dist/index.cjs",
@@ -26,7 +26,7 @@
     "build:dts": "dts-bundle-generator -o dist/index.d.ts src/index.ts",
     "preversion": "npm run test",
     "version": "standard-changelog && git add CHANGELOG.md",
-    "postversion": "git push && git push --tags && npm publish --access public",
+    "postversion": "git push && git push --tags && npm publish",
     "prepublishOnly": "npm run build"
   },
   "repository": {
